@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>教室廣播接收器</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
+        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
+        h1 { color: #007AFF; font-size: 40px; }
+        .btn { padding: 20px 40px; font-size: 24px; background: #34c759; color: white; border: none; border-radius: 15px; cursor: pointer; }
+        #status { margin-top: 20px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1 id="roomDisplay">載入中...</h1>
+        <button id="startBtn" class="btn">點擊啟動監聽</button>
+        <div id="status">尚未啟動</div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const MY_ID = urlParams.get('id') || "未設定";
+        document.getElementById('roomDisplay').innerText = "第 " + MY_ID + " 教室";
+
+        // 注意：這裡現在儲存的是最後一次收到的 ID (C2 的數字)
+        let lastId = "";
+
+        document.getElementById('startBtn').addEventListener('click', function() {
+            this.style.display = 'none';
+            document.getElementById('status').innerText = "監聽中...請勿關閉網頁";
+            
+            window.speechSynthesis.getVoices();
+
+            setInterval(() => {
+                fetch(SCRIPT_URL + "?t=" + new Date().getTime())
+                    .then(res => res.json())
+                    .then(data => {
+                        // 關鍵點：改用 data.id (也就是試算表 C2) 來判斷
+                        const isForMe = (data.target === "4" || data.target === MY_ID);
+                        
+                        // 如果目標對象是我，且 C2 的數字變了，就唸出來
+                        if (isForMe && data.id !== lastId) {
+                            lastId = data.id; 
+                            speak(data.text);
+                            document.getElementById('status').innerText = "最新廣播：" + data.text;
+                        } 
+                        // 如果目標不是我，但 C2 數字變了，也要更新 ID 免得下次誤觸
+                        else if (!isForMe && data.id !== lastId) {
+                            lastId = data.id;
+                        }
+                    })
+                    .catch(err => console.error("抓取失敗:", err));
+            }, 3000); // 縮短為 3 秒檢查一次，反應更快
+        });
+
+        function speak(msg) {
+            const synth = window.speechSynthesis;
+            const utter = new SpeechSynthesisUtterance(msg);
+            const voices = synth.getVoices();
+            
+            const bestVoice = voices.find(v => v.lang.includes('zh-TW') && v.name.includes('Premium')) || 
+                              voices.find(v => v.lang.includes('zh-TW')) ||
+                              voices.find(v => v.lang.includes('zh-HK'));
+
+            if (bestVoice) utter.voice = bestVoice;
+
+            utter.lang = 'zh-TW';
+            utter.rate = 0.8; 
+            utter.pitch = 1.0; 
+            
+            synth.cancel(); 
+            synth.speak(utter);
+        }
+    </script>
+</body>
+</html>
