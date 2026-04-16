@@ -15,7 +15,7 @@
 <body>
     <div class="card">
         <h1 id="roomDisplay">載入中...</h1>
-        <button id="startBtn" class="btn">點擊啟動廣播監聽</button>
+        <button id="startBtn" class="btn">點擊啟動廣播</button>
         <div id="status">尚未啟動</div>
     </div>
 
@@ -30,7 +30,7 @@
 
         document.getElementById('startBtn').addEventListener('click', function() {
             this.style.display = 'none';
-            document.getElementById('status').innerText = "監聽中...請勿關閉網頁";
+            document.getElementById('status').innerText = "廣播中...請勿關閉網頁";
             
             // 【Safari 關鍵解鎖】點擊時立刻播放一個極短的無聲片段
             // 這會告訴 iPad Safari：這個網頁現在有權限使用喇叭了
