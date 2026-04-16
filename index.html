@@ -15,48 +15,51 @@
 <body>
     <div class="card">
         <h1 id="roomDisplay">載入中...</h1>
-        <button id="startBtn" class="btn">點擊啟動監聽</button>
+        <button id="startBtn" class="btn">點擊啟動廣播監聽</button>
         <div id="status">尚未啟動</div>
     </div>
 
     <script>
-        // 你的 Google 腳本網址
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
 
         const urlParams = new URLSearchParams(window.location.search);
         const MY_ID = urlParams.get('id') || "未設定";
         document.getElementById('roomDisplay').innerText = "第 " + MY_ID + " 教室";
 
-        // 這是用來記錄最後一次收到的 C2 數字
         let lastId = "";
 
         document.getElementById('startBtn').addEventListener('click', function() {
             this.style.display = 'none';
             document.getElementById('status').innerText = "監聽中...請勿關閉網頁";
             
-            // 預熱語音清單
-            window.speechSynthesis.getVoices();
+            // 【Safari 關鍵解鎖】點擊時立刻播放一個極短的無聲片段
+            // 這會告訴 iPad Safari：這個網頁現在有權限使用喇叭了
+            const synth = window.speechSynthesis;
+            const unlock = new SpeechSynthesisUtterance("啟動");
+            unlock.volume = 0; // 無聲播放
+            synth.speak(unlock);
 
-            // 每 3 秒檢查一次，反應更快
+            // 啟動循環檢查 (移除原本重疊的 setInterval)
             setInterval(() => {
                 fetch(SCRIPT_URL + "?t=" + new Date().getTime())
                     .then(res => res.json())
                     .then(data => {
                         // 判斷是否為全體(4) 或 我的編號
-                        // 使用 == 比較，避免字串與數字型態不同的問題
                         const isForMe = (data.target == "4" || data.target == MY_ID);
                         
-                        // 判斷 ID (C2) 是否變動，有變動才開口
+                        // 判斷 ID (C2) 是否變動
                         if (isForMe && data.id != lastId) {
                             lastId = data.id; 
                             speak(data.text);
                             document.getElementById('status').innerText = "最新廣播：" + data.text;
                         } else if (data.id != lastId) {
-                            // 即使不是給我的，也要更新 ID 紀錄，免得下次誤觸
                             lastId = data.id;
                         }
                     })
-                    .catch(err => console.error("抓取失敗:", err));
+                    .catch(err => {
+                        console.error("抓取失敗:", err);
+                        document.getElementById('status').innerText = "連線異常，嘗試重新連線中...";
+                    });
             }, 3000); 
         });
 
@@ -72,10 +75,10 @@
             if (bestVoice) utter.voice = bestVoice;
 
             utter.lang = 'zh-TW';
-            utter.rate = 0.75; // 語速：0.7 到 0.8 之間最像真人
+            utter.rate = 0.75; 
             utter.pitch = 1.0; 
             
-            synth.cancel(); // 唸新的之前先停止舊的，避免重疊
+            synth.cancel(); 
             synth.speak(utter);
         }
     </script>
