@@ -6,45 +6,64 @@
     <title>廣播發送台</title>
     <style>
         body { font-family: sans-serif; background: #e5e5ea; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
-        h2 { color: #007AFF; text-align: center; }
-        textarea { width: 100%; height: 120px; padding: 12px; box-sizing: border-box; border: 2px solid #ddd; border-radius: 12px; font-size: 18px; resize: none; }
-        select, button { width: 100%; padding: 15px; margin-top: 15px; border-radius: 12px; border: none; font-size: 18px; }
-        button { background: #007AFF; color: white; cursor: pointer; font-weight: bold; }
-        #status { text-align: center; margin-top: 15px; font-weight: bold; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h2 { color: #007AFF; text-align: center; margin-bottom: 20px; }
+        textarea { width: 100%; height: 120px; padding: 15px; box-sizing: border-box; border: 2px solid #ddd; border-radius: 12px; font-size: 18px; resize: none; margin-bottom: 10px; }
+        textarea:focus { border-color: #007AFF; outline: none; }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        .btn { padding: 20px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        
+        /* 顏色區分 */
+        .all-btn { background: #ff3b30; grid-column: span 2; font-size: 22px; } /* 全體紅色 */
+        .room-btn { background: #007AFF; } /* 個別教室藍色 */
+        
+        #status { text-align: center; margin-top: 20px; font-weight: bold; min-height: 24px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>📣 廣播發送台</h2>
-        <textarea id="textInput" placeholder="請輸入廣播內容..."></textarea>
-        <select id="targetSelect">
-            <option value="4">全體廣播 (4)</option>
-            <option value="1">第 1 教室</option>
-            <option value="2">第 2 教室</option>
-            <option value="3">第 3 教室</option>
-        </select>
-        <button onclick="send()">🚀 立即發送</button>
+        <h2>📣 廣播控制台</h2>
+        <textarea id="textInput" placeholder="在此輸入要廣播的內容..."></textarea>
+        
+        <div class="btn-group">
+            <button class="btn all-btn" onclick="send('4')">📢 全體廣播</button>
+            <button class="btn room-btn" onclick="send('1')">🏫 第 1 教室</button>
+            <button class="btn room-btn" onclick="send('2')">🏫 第 2 教室</button>
+            <button class="btn room-btn" onclick="send('3')">🏫 第 3 教室</button>
+        </div>
+        
         <div id="status"></div>
     </div>
+
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
-        function send() {
+
+        function send(target) {
             const text = document.getElementById('textInput').value;
-            const target = document.getElementById('targetSelect').value;
             const statusDiv = document.getElementById('status');
-            if (!text) { alert("請輸入內容"); return; }
-            statusDiv.innerText = "發送中...";
+
+            if (!text) {
+                alert("請先輸入廣播內容！");
+                return;
+            }
+
+            statusDiv.innerText = "🚀 正在發送...";
+            statusDiv.style.color = "orange";
+
             fetch(SCRIPT_URL, {
                 method: "POST",
                 mode: "no-cors",
                 body: JSON.stringify({ text: text, target: target })
             }).then(() => {
-                statusDiv.innerText = "✅ 發送成功！";
-                document.getElementById('textInput').value = "";
+                statusDiv.innerText = "✅ 已成功發送！";
+                statusDiv.style.color = "green";
+                document.getElementById('textInput').value = ""; // 清空文字
                 setTimeout(() => statusDiv.innerText = "", 3000);
             }).catch(() => {
-                statusDiv.innerText = "❌ 發送失敗";
+                statusDiv.innerText = "❌ 發送失敗，請檢查網路";
+                statusDiv.style.color = "red";
             });
         }
     </script>
