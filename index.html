@@ -2,85 +2,76 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>教室廣播接收器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>iPad 廣播接收系統</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f0f2f5; }
-        .card { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
-        h1 { color: #007AFF; font-size: 40px; }
-        .btn { padding: 20px 40px; font-size: 24px; background: #34c759; color: white; border: none; border-radius: 15px; cursor: pointer; }
-        #status { margin-top: 20px; color: #666; }
+        body { font-family: "Microsoft JhengHei", sans-serif; text-align: center; background: #f8f9fa; margin: 0; padding: 20px; color: #333; }
+        .container { background: white; max-width: 600px; margin: 40px auto; padding: 40px 20px; border-radius: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border: 2px solid #eef2f7; }
+        .title { font-size: 1.8rem; margin-bottom: 30px; color: #2c3e50; font-weight: bold; }
+        .label { color: #888; font-size: 1.1rem; letter-spacing: 2px; }
+        .broadcast-display { font-size: 3rem; font-weight: 900; color: #d63031; margin: 20px 0; line-height: 1.4; word-break: break-all; }
+        .status { font-size: 0.8rem; color: #bbb; margin-top: 30px; }
+        .active { background-color: #fff9c4; transition: 0.5s; }
     </style>
 </head>
-<body>
-    <div class="card">
-        <h1 id="roomDisplay">載入中...</h1>
-        <button id="startBtn" class="btn">點擊啟動廣播</button>
-        <div id="status">尚未啟動</div>
-    </div>
+<body id="bodyTag">
 
-    <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
+<div class="container">
+    <div id="roomTitle" class="title">正在初始化...</div>
+    <div class="label">📣 最新廣播內容</div>
+    <div id="broadcastContent" class="broadcast-display">等待訊息中...</div>
+    <div id="targetInfo" style="color: #0984e3; font-weight: bold;">--</div>
+    <div class="status" id="connStatus">連線狀態：正在連線至 GAS...</div>
+</div>
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const MY_ID = urlParams.get('id') || "未設定";
-        document.getElementById('roomDisplay').innerText = "第 " + MY_ID + " 教室";
+<script>
+    // ======= 這裡一定要改！貼上你自己的 GAS 網址 =======
+    const GAS_URL = "你的_GAS_網址"; 
+    // =================================================
 
-        let lastId = "";
+    const urlParams = new URLSearchParams(window.location.search);
+    const myId = urlParams.get('id') || "1"; 
+    document.getElementById('roomTitle').innerText = "第 " + myId + " 教室廣播端";
 
-        document.getElementById('startBtn').addEventListener('click', function() {
-            this.style.display = 'none';
-            document.getElementById('status').innerText = "廣播中...請勿關閉網頁";
-            
-            // 【Safari 關鍵解鎖】點擊時立刻播放一個極短的無聲片段
-            // 這會告訴 iPad Safari：這個網頁現在有權限使用喇叭了
-            const synth = window.speechSynthesis;
-            const unlock = new SpeechSynthesisUtterance("啟動");
-            unlock.volume = 0; // 無聲播放
-            synth.speak(unlock);
+    let lastId = 0; 
 
-            // 啟動循環檢查 (移除原本重疊的 setInterval)
-            setInterval(() => {
-                fetch(SCRIPT_URL + "?t=" + new Date().getTime())
-                    .then(res => res.json())
-                    .then(data => {
-                        // 判斷是否為全體(4) 或 我的編號
-                        const isForMe = (data.target == "4" || data.target == MY_ID);
-                        
-                        // 判斷 ID (C2) 是否變動
-                        if (isForMe && data.id != lastId) {
-                            lastId = data.id; 
-                            speak(data.text);
-                            document.getElementById('status').innerText = "最新廣播：" + data.text;
-                        } else if (data.id != lastId) {
-                            lastId = data.id;
-                        }
-                    })
-                    .catch(err => {
-                        console.error("抓取失敗:", err);
-                        document.getElementById('status').innerText = "連線異常，嘗試重新連線中...";
-                    });
-            }, 3000); 
-        });
-
-        function speak(msg) {
-            const synth = window.speechSynthesis;
-            const utter = new SpeechSynthesisUtterance(msg);
-            
-            // 挑選高品質人聲
-            const voices = synth.getVoices();
-            const bestVoice = voices.find(v => v.lang.includes('zh-TW') && v.name.includes('Premium')) || 
-                              voices.find(v => v.lang.includes('zh-TW'));
-
-            if (bestVoice) utter.voice = bestVoice;
-
-            utter.lang = 'zh-TW';
-            utter.rate = 0.75; 
-            utter.pitch = 1.0; 
-            
-            synth.cancel(); 
-            synth.speak(utter);
+    async function checkUpdate() {
+        try {
+            const response = await fetch(GAS_URL);
+            const data = await response.json();
+            if (data.status === "success") {
+                document.getElementById('connStatus').innerText = "連線狀態：正常運作中";
+                if (data.id > lastId) {
+                    lastId = data.id;
+                    // 這裡就是判斷「12一起」的核心邏輯
+                    if (data.target === "全部" || data.target.includes(myId)) {
+                        processBroadcast(data.text, data.target);
+                    }
+                }
+            }
+        } catch (err) {
+            document.getElementById('connStatus').innerText = "連連線異常，重試中...";
         }
-    </script>
+    }
+
+    function processBroadcast(text, target) {
+        document.getElementById('broadcastContent').innerText = text;
+        document.getElementById('targetInfo').innerText = "發送對象：" + target;
+        document.getElementById('bodyTag').classList.add('active');
+        
+        // 語音廣播
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'zh-TW';
+        window.speechSynthesis.speak(msg);
+
+        setTimeout(() => {
+            document.getElementById('bodyTag').classList.remove('active');
+        }, 15000);
+    }
+
+    setInterval(checkUpdate, 5000);
+    checkUpdate();
+</script>
 </body>
 </html>
