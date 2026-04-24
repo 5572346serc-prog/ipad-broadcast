@@ -25,8 +25,8 @@
 </div>
 
 <script>
-    // ======= 這裡一定要改！貼上你自己的 GAS 網址 =======
-    const GAS_URL = "你的_GAS_網址"; 
+    // ======= 已為你填入最新的 GAS 網址 =======
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec"; 
     // =================================================
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -37,20 +37,26 @@
 
     async function checkUpdate() {
         try {
-            const response = await fetch(GAS_URL);
+            // 加入 cache: "no-store" 避免瀏覽器抓到舊資料，減少連線異常
+            const response = await fetch(GAS_URL, { cache: "no-store" });
             const data = await response.json();
+            
             if (data.status === "success") {
                 document.getElementById('connStatus').innerText = "連線狀態：正常運作中";
+                
+                // 只有當序號 id 增加時才發出廣播
                 if (data.id > lastId) {
                     lastId = data.id;
-                    // 這裡就是判斷「12一起」的核心邏輯
-                    if (data.target === "全部" || data.target.includes(myId)) {
+                    
+                    // 判斷邏輯：如果目標是「全部」或者包含這台 iPad 的 ID
+                    if (data.target === "全部" || data.target === "4" || data.target.includes(myId)) {
                         processBroadcast(data.text, data.target);
                     }
                 }
             }
         } catch (err) {
-            document.getElementById('connStatus').innerText = "連連線異常，重試中...";
+            console.error(err);
+            document.getElementById('connStatus').innerText = "連線異常，重試中...";
         }
     }
 
@@ -65,11 +71,13 @@
         msg.lang = 'zh-TW';
         window.speechSynthesis.speak(msg);
 
+        // 15 秒後恢復背景色
         setTimeout(() => {
             document.getElementById('bodyTag').classList.remove('active');
         }, 15000);
     }
 
+    // 每 5 秒檢查一次
     setInterval(checkUpdate, 5000);
     checkUpdate();
 </script>
