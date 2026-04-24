@@ -12,12 +12,13 @@
         textarea:focus { border-color: #007AFF; outline: none; }
         
         .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
-        .btn { padding: 20px; border-radius: 12px; border: none; font-size: 18px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
+        .btn { padding: 15px; border-radius: 12px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; color: white; transition: 0.2s; }
         .btn:active { transform: scale(0.95); }
         
         /* 顏色區分 */
-        .all-btn { background: #ff3b30; grid-column: span 2; font-size: 22px; } /* 全體紅色 */
-        .room-btn { background: #007AFF; } /* 個別教室藍色 */
+        .all-btn { background: #ff3b30; grid-column: span 2; font-size: 20px; } 
+        .room-btn { background: #007AFF; }
+        .group-btn { background: #5856d6; } /* 組合按鈕用紫色 */
         
         #status { text-align: center; margin-top: 20px; font-weight: bold; min-height: 24px; }
     </style>
@@ -28,16 +29,22 @@
         <textarea id="textInput" placeholder="在此輸入要廣播的內容..."></textarea>
         
         <div class="btn-group">
-            <button class="btn all-btn" onclick="send('4')">📢 全體廣播</button>
+            <button class="btn all-btn" onclick="send('全部')">📢 全體廣播</button>
+            
             <button class="btn room-btn" onclick="send('1')">🏫 第 1 教室</button>
             <button class="btn room-btn" onclick="send('2')">🏫 第 2 教室</button>
             <button class="btn room-btn" onclick="send('3')">🏫 第 3 教室</button>
+            
+            <button class="btn group-btn" onclick="send('12一起')">👥 1+2 教室</button>
+            <button class="btn group-btn" onclick="send('23一起')">👥 2+3 教室</button>
+            <button class="btn group-btn" onclick="send('13一起')">👥 1+3 教室</button>
         </div>
         
         <div id="status"></div>
     </div>
 
     <script>
+        // 確認這裡是你最新的 GAS 部署網址
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
 
         function send(target) {
@@ -49,17 +56,17 @@
                 return;
             }
 
-            statusDiv.innerText = "🚀 正在發送...";
+            statusDiv.innerText = "🚀 正在發送至 [" + target + "]...";
             statusDiv.style.color = "orange";
 
             fetch(SCRIPT_URL, {
                 method: "POST",
-                mode: "no-cors",
+                mode: "no-cors", // 由於 GAS 的限制，必須使用 no-cors
                 body: JSON.stringify({ text: text, target: target })
             }).then(() => {
                 statusDiv.innerText = "✅ 已成功發送！";
                 statusDiv.style.color = "green";
-                document.getElementById('textInput').value = ""; // 清空文字
+                document.getElementById('textInput').value = ""; 
                 setTimeout(() => statusDiv.innerText = "", 3000);
             }).catch(() => {
                 statusDiv.innerText = "❌ 發送失敗，請檢查網路";
