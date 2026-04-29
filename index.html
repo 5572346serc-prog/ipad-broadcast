@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>iPad 廣播接收系統</title>
     <style>
+        * { box-sizing: border-box; }
         body { font-family: "Microsoft JhengHei", sans-serif; text-align: center; background: #f8f9fa; margin: 0; padding: 20px; color: #333; }
         .container { background: white; max-width: 600px; margin: 40px auto; padding: 40px 20px; border-radius: 30px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); border: 2px solid #eef2f7; }
         .title { font-size: 1.8rem; margin-bottom: 30px; color: #2c3e50; font-weight: bold; }
@@ -12,51 +13,107 @@
         .broadcast-display { font-size: 3rem; font-weight: 900; color: #d63031; margin: 20px 0; line-height: 1.4; word-break: break-all; }
         .status { font-size: 0.8rem; color: #bbb; margin-top: 30px; }
         .active { background-color: #fff9c4; transition: 0.5s; }
+
+        /* 啟動遮罩 */
+        #startOverlay {
+            position: fixed; inset: 0;
+            background: rgba(0, 0, 0, 0.82);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 999;
+            gap: 16px;
+        }
+        #startOverlay p {
+            color: #ffffffcc;
+            font-size: 1.3rem;
+            margin: 0;
+        }
+        #startOverlay h2 {
+            color: white;
+            font-size: 2rem;
+            margin: 0;
+        }
+        #startBtn {
+            margin-top: 10px;
+            font-size: 1.6rem;
+            padding: 18px 55px;
+            border-radius: 20px;
+            border: none;
+            background: #00b894;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,184,148,0.4);
+        }
+        #startBtn:active { transform: scale(0.96); }
     </style>
 </head>
 <body id="bodyTag">
+
+<!-- 啟動遮罩（點一下才解鎖聲音） -->
+<div id="startOverlay">
+    <h2>📣 廣播接收系統</h2>
+    <p id="overlayRoom"></p>
+    <button id="startBtn" onclick="unlockAudio()">▶ 開始接收廣播</button>
+    <p style="font-size:0.9rem; color:#ffffff88;">點擊後即可自動接收語音廣播</p>
+</div>
 
 <div class="container">
     <div id="roomTitle" class="title">正在初始化...</div>
     <div class="label">📣 最新廣播內容</div>
     <div id="broadcastContent" class="broadcast-display">等待訊息中...</div>
     <div id="targetInfo" style="color: #0984e3; font-weight: bold;">--</div>
-    <div class="status" id="connStatus">連線狀態：正在連線至 GAS...</div>
+    <div class="status" id="connStatus">連線狀態：請點擊上方按鈕啟動</div>
 </div>
 
 <script>
-    // ======= 已為你填入最新的 GAS 網址 =======
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec"; 
-    // =================================================
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwzDhQfZxlA_DdvMjl4ZBhjqpYhXMzeP7mTH19pJk06nRSWXcFbrKN9w3HYvVWCD3xX/exec";
 
     const urlParams = new URLSearchParams(window.location.search);
-    const myId = urlParams.get('id') || "1"; 
-    document.getElementById('roomTitle').innerText = "第 " + myId + " 教室廣播端";
+    const myId = urlParams.get('id') || "1";
 
-    let lastId = 0; 
+    document.getElementById('roomTitle').innerText = "第 " + myId + " 教室廣播端";
+    document.getElementById('overlayRoom').innerText = "第 " + myId + " 教室";
+
+    let lastId = 0;
+    let polling = false;
+
+    function unlockAudio() {
+        // 播一個無聲語音，解鎖 iOS Safari / Chrome 的音訊限制
+        const unlock = new SpeechSynthesisUtterance(" ");
+        unlock.volume = 0;
+        window.speechSynthesis.speak(unlock);
+
+        document.getElementById('startOverlay').style.display = 'none';
+        document.getElementById('connStatus').innerText = "連線狀態：正在連線...";
+
+        polling = true;
+        checkUpdate(); // 馬上檢查一次
+        setInterval(checkUpdate, 5000);
+    }
 
     async function checkUpdate() {
+        if (!polling) return;
         try {
-            // 加入 cache: "no-store" 避免瀏覽器抓到舊資料，減少連線異常
             const response = await fetch(GAS_URL, { cache: "no-store" });
             const data = await response.json();
-            
+
             if (data.status === "success") {
-                document.getElementById('connStatus').innerText = "連線狀態：正常運作中";
-                
-                // 只有當序號 id 增加時才發出廣播
+                document.getElementById('connStatus').innerText = "連線狀態：正常運作中 ✅";
+
                 if (data.id > lastId) {
                     lastId = data.id;
-                    
-                    // 判斷邏輯：如果目標是「全部」或者包含這台 iPad 的 ID
-                    if (data.target === "全部" || data.target === "4" || data.target.includes(myId)) {
-                        processBroadcast(data.text, data.target);
+
+                    const target = (data.target || "").toString();
+                    // 符合：全部、或目標字串包含這台的 ID
+                    if (target === "全部" || target === myId || target.includes(myId)) {
+                        processBroadcast(data.text, target);
                     }
                 }
             }
         } catch (err) {
             console.error(err);
-            document.getElementById('connStatus').innerText = "連線異常，重試中...";
+            document.getElementById('connStatus').innerText = "連線異常，重試中... ⚠️";
         }
     }
 
@@ -64,22 +121,18 @@
         document.getElementById('broadcastContent').innerText = text;
         document.getElementById('targetInfo').innerText = "發送對象：" + target;
         document.getElementById('bodyTag').classList.add('active');
-        
-        // 語音廣播
+
+        // 語音播放（已解鎖，這裡一定有聲音）
         window.speechSynthesis.cancel();
         const msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'zh-TW';
+        msg.rate = 0.9;
         window.speechSynthesis.speak(msg);
 
-        // 15 秒後恢復背景色
         setTimeout(() => {
             document.getElementById('bodyTag').classList.remove('active');
         }, 15000);
     }
-
-    // 每 5 秒檢查一次
-    setInterval(checkUpdate, 5000);
-    checkUpdate();
 </script>
 </body>
 </html>
